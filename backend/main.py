@@ -506,6 +506,8 @@ def crear_evento(evento: EventoCrear, access_token: str = Cookie(None)):
 
 
 
+from datetime import datetime, timezone
+
 @app.get("/grupos/{grupo_id}/eventos")
 def get_eventos_por_grupo(grupo_id: int):
     try:
@@ -518,7 +520,7 @@ def get_eventos_por_grupo(grupo_id: int):
         if not grupo:
             raise HTTPException(status_code=404, detail="Grupo no encontrado")
 
-        # Obtener todos los eventos del grupo con la cantidad de participantes y ubicación
+        # Obtener eventos del grupo
         cur.execute(
             """
             SELECT 
@@ -545,9 +547,20 @@ def get_eventos_por_grupo(grupo_id: int):
         cur.close()
         conn.close()
 
-        # Formatear participantes y agregar lat/lng
         eventos_list = []
+
+        now = datetime.now(timezone.utc)  # fecha actual aware
+
         for e in eventos:
+
+            # Convertir fecha DB → datetime aware
+            fecha = e["fecha_hora"]
+            if fecha.tzinfo is None:
+                fecha = fecha.replace(tzinfo=timezone.utc)
+
+            # Comparar
+            evento_vencido = fecha < now
+
             eventos_list.append({
                 "evento_id": e["evento_id"],
                 "nombre": e["nombre"],
@@ -557,7 +570,8 @@ def get_eventos_por_grupo(grupo_id: int):
                 "precio": e["precio"],
                 "participantes": f"{e['inscritos']} / {e['max_participantes']}",
                 "latitud": e["latitud"],
-                "longitud": e["longitud"]
+                "longitud": e["longitud"],
+                "evento_vencido": evento_vencido
             })
 
         return {
@@ -575,9 +589,10 @@ def get_eventos_por_grupo(grupo_id: int):
 
 
 
+
 @app.post("/eventos/{evento_id}/unirse")
 def unirse_evento(evento_id: int, access_token: str = Cookie(None)):
-    # 1️⃣ Obtener usuario desde JWT
+    # 1 Obtener usuario desde JWT
     user_id = verify_token(access_token)
 
     try:
@@ -1333,8 +1348,10 @@ def salir_o_cancelar_evento(evento_id: int, access_token: str = Cookie(None)):
 @app.get("/eventos/recomendados")
 def get_eventos_amigos_y_favoritos(access_token: str = Cookie(None)):
     """
-    Obtiene todos los eventos en los que participan mis amigos (independientemente del deporte)
-    y además los eventos que sean del deporte favorito del usuario actual.
+    Obtiene eventos recomendados:
+    - Eventos donde participan mis amigos (o son anfitriones ellos)
+    - Eventos del deporte favorito del usuario
+    Devuelve `participantes` formateado como "inscritos / max_participantes".
     """
     user_id = verify_token(access_token)
 
@@ -1342,12 +1359,12 @@ def get_eventos_amigos_y_favoritos(access_token: str = Cookie(None)):
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        # 1️ Obtener deporte favorito del usuario
+        # 1) Deporte favorito
         cur.execute("SELECT deporte_favorito FROM usuarios WHERE google_id = %s", (user_id,))
         row = cur.fetchone()
         deporte_favorito = row["deporte_favorito"] if row else None
 
-        # 2 Obtener IDs de amigos desde la tabla 'amigos'
+        # 2) IDs de amigos
         cur.execute(
             """
             SELECT 
@@ -1364,7 +1381,7 @@ def get_eventos_amigos_y_favoritos(access_token: str = Cookie(None)):
 
         eventos_finales = []
 
-        # 3 Si tiene amigos, traer los eventos donde ellos participan
+        # 3) Eventos relacionados a amigos (si hay)
         if amigos:
             cur.execute(
                 """
@@ -1378,7 +1395,7 @@ def get_eventos_amigos_y_favoritos(access_token: str = Cookie(None)):
             eventos_amigos = cur.fetchall()
             eventos_finales.extend(eventos_amigos)
 
-        # 4 Si tiene deporte favorito, traer eventos de ese deporte
+        # 4) Eventos por deporte favorito (si existe)
         if deporte_favorito:
             cur.execute(
                 """
@@ -1392,33 +1409,39 @@ def get_eventos_amigos_y_favoritos(access_token: str = Cookie(None)):
             eventos_favoritos = cur.fetchall()
             eventos_finales.extend(eventos_favoritos)
 
-        # 5 Eliminar duplicados por ID
+        # 5) Eliminar duplicados por ID
         eventos_unicos = {e["id"]: e for e in eventos_finales}.values()
 
-        cur.close()
-        conn.close()
+        # 6) Para cada evento obtener la cantidad de inscritos (incluye anfitrión si está en usuarios_eventos)
+        eventos_list = []
+        for e in eventos_unicos:
+            cur.execute(
+                "SELECT COUNT(*) AS inscritos FROM usuarios_eventos WHERE evento_id = %s",
+                (e["id"],)
+            )
+            inscritos = cur.fetchone()["inscritos"] or 0
 
-        # 6 Formatear salida
-        eventos_list = [
-            {
+            eventos_list.append({
                 "evento_id": e["id"],
                 "nombre": e["nombre"],
                 "descripcion": e["descripcion"],
                 "lugar": e["lugar"],
                 "fecha_hora": e["fecha_hora"],
                 "precio": e["precio"],
-                "latitud": e["latitud"],
-                "longitud": e["longitud"],
-                "grupo_id": e["grupo_id"],
-                "anfitrion_id": e["anfitrion_id"],
-                "max_participantes": e["max_participantes"]
-            }
-            for e in eventos_unicos
-        ]
+                "latitud": e.get("latitud"),
+                "longitud": e.get("longitud"),
+                "grupo_id": e.get("grupo_id"),
+                "anfitrion_id": e.get("anfitrion_id"),
+                "max_participantes": e.get("max_participantes"),
+                # Formateo consistente con /grupos/{id}/eventos
+                "participantes": f"{inscritos} / {e.get('max_participantes')}"
+            })
+
+        cur.close()
+        conn.close()
 
         return {"ok": True, "eventos": eventos_list}
 
-    except Exception as e:
-        print("Error obteniendo eventos recomendados:", e)
+    except Exception as ex:
+        print("Error obteniendo eventos recomendados:", ex)
         raise HTTPException(status_code=500, detail="Error interno obteniendo eventos recomendados")
-

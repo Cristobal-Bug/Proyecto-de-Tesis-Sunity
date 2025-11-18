@@ -14,6 +14,8 @@ interface Evento {
   participantes: string;
   latitud: number;
   longitud: number;
+  evento_vencido: boolean;
+
 }
 
 interface EventosProps {
@@ -209,8 +211,14 @@ useEffect(() => {
           <div className="eventos-content">
             <div className="eventos-grid">
               {eventos.map((evento) => (
-                <div key={evento.evento_id} className="evento-card">
+                <div 
+                     key={evento.evento_id} 
+                      className={`evento-card ${evento.evento_vencido ? "evento-vencido" : ""}`}
+>
                   <div className="evento-header">
+                    {evento.evento_vencido && (
+  <div className="evento-vencido-label">EVENTO VENCIDO</div>
+)}
                     <h3 className="evento-title">{evento.nombre}</h3>
                     <div className="evento-badge">
                       {evento.precio === 0 ? 'Gratis' : `$${evento.precio}`}
@@ -246,18 +254,27 @@ useEffect(() => {
                   </div>
 
                   <div className="evento-actions">
-                    <button
-                      className="btn-accion"
-                      onClick={() => setEventoSeleccionado(evento)}
-                    >
-                      🔍 Ver información
-                    </button>
-                    <button
-                      className="btn-accion"
-                      onClick={() => fetchParticipantes(evento.evento_id)}
-                    >
-                      👥 Ver participantes
-                    </button>
+                    {!evento.evento_vencido ? (
+                      <div className="evento-actions">
+                        <button
+                          className="btn-accion"
+                          onClick={() => setEventoSeleccionado(evento)}
+                        >
+                          🔍 Ver información
+                        </button>
+                        <button
+                          className="btn-accion"
+                          onClick={() => fetchParticipantes(evento.evento_id)}
+                        >
+                          👥 Ver participantes
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="evento-actions evento-actions-disabled">
+                        <span className="evento-vencido-label">EVENTO VENCIDO</span>
+                      </div>
+                    )}
+
                   </div>
                 </div>
               ))}

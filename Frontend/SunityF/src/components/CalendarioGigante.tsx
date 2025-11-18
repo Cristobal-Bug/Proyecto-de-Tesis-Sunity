@@ -38,6 +38,10 @@ const CalendarioGigante: React.FC = () => {
   const [showConfirmar, setShowConfirmar] = useState(false);
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
 
+const eventoYaPaso = (fecha: string) => {
+  return new Date(fecha) < new Date();
+};
+;
 
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: "AIzaSyARn1iesZ0davsL71G7SEvuonnbR13XCZE"
@@ -371,6 +375,7 @@ const manejarSalidaEvento = async (eventoId: string) => {
                         >
                           👤 Ver perfil
                         </button>
+
                       </div>
                     ))}
                   </div>
@@ -416,12 +421,16 @@ const manejarSalidaEvento = async (eventoId: string) => {
 
               {/* Botón de acción */}
               <div className="modal-actions">
-                <button 
-                  className="btn-accion"
-                  onClick={() => setShowConfirmar(true)}
-                >
-                  ❌ {eventoSeleccionado.tipo === "anfitrion" ? "Cancelar evento" : "Abandonar este evento"}
-                </button>
+                {!eventoYaPaso(eventoSeleccionado.start) && (
+                  <div className="modal-actions">
+                    <button 
+                      className="btn-accion"
+                      onClick={() => setShowConfirmar(true)}
+                    >
+                      ❌ {eventoSeleccionado.tipo === "anfitrion" ? "Cancelar evento" : "Abandonar este evento"}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Modal de confirmación */}
