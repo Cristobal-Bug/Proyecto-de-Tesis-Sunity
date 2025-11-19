@@ -3,6 +3,7 @@ from bd import get_connection
 import psycopg2.extras
 from jose import jwt
 import os
+from fastapi import Cookie
 
 # =========================
 # Configuración JWT
@@ -98,15 +99,16 @@ def obtener_detalles_calificaciones(evaluado_id: str):
 @router.post("/calificaciones/{evaluado_id}")
 def crear_calificacion(
     evaluado_id: str,
-    access_token: str = Query(..., description="Token JWT del evaluador"),
-    estrellas: int = Query(..., ge=1, le=5, description="Número de estrellas (1-5)"),
-    motivo: str = Query(None, max_length=100, description="Motivo opcional")
+    access_token: str = Cookie(None, description="Token JWT almacenado en cookie"),
+    estrellas: int = Query(..., ge=1, le=5),
+    motivo: str = Query(None, max_length=100)
 ):
-    """Crea una nueva calificación para un usuario"""
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Token no encontrado en la cookie")
+
     try:
         evaluador_id = verify_token(access_token)
 
-        # Evitar auto-calificación
         if evaluador_id == evaluado_id:
             raise HTTPException(status_code=400, detail="No puedes calificarte a ti mismo")
 
@@ -124,9 +126,6 @@ def crear_calificacion(
         cur.close()
         conn.close()
 
-        if not result or "id" not in result:
-            raise HTTPException(status_code=500, detail="No se pudo obtener el ID de la calificación")
-
         return {
             "mensaje": "Calificación creada exitosamente",
             "calificacion_id": result["id"],
@@ -136,12 +135,9 @@ def crear_calificacion(
             "motivo": motivo
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         print("❌ ERROR AL CREAR CALIFICACIÓN:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.post("/calificaciones/sistema/{evaluado_id}")
 def calificacion_sistema(

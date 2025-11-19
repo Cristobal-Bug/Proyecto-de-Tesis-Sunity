@@ -71,6 +71,113 @@
 .btn-cancelar:hover {
   background: #d0d0d0;
 }
+.stars-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+/* 🔥 Estrellas mucho más rectas y alineadas */
+.star {
+  font-size: 36px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  color: #ffd700;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  line-height: 1;                /* Evita saltos verticales */
+  vertical-align: middle;        /* Centrado perfecto */
+  display: inline-flex;          /* Consistencia en alineación */
+  align-items: center;           /* Centrado del ícono */
+  justify-content: center;
+}
+
+.star:hover {
+  opacity: 0.8;
+  transform: scale(1.12); /* más suave */
+}
+
+.star.active {
+  opacity: 1;
+  transform: scale(1.25);
+  color: #ffc107;
+  filter: drop-shadow(0 4px 8px rgba(255, 193, 7, 0.3));
+}
+
+.motivo-input {
+  width: 100%;
+  height: 80px;
+  resize: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  border: 1px solid #e0e0e0;
+  background: #fafafa;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  color: black;
+}
+
+.motivo-input:focus {
+  outline: none;
+  border-color: #2196f3;
+  background: white;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.15);
+  transform: translateY(-1px);
+}
+
+.motivo-input::placeholder {
+  color: #9e9e9e;
+}
+
+.btns-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+/* Animación */
+.rating-container {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .stars-container {
+    gap: 6px;
+    padding: 12px;
+  }
+  
+  .star {
+    font-size: 32px;
+  }
+  
+  .motivo-input {
+    height: 70px;
+    padding: 10px 14px;
+  }
+}
+
 
 .btn-confirmar {
   background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);

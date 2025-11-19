@@ -37,6 +37,9 @@ const CalendarioGigante: React.FC = () => {
   const [participantesEvento, setParticipantesEvento] = useState<Participante[]>([]);
   const [showConfirmar, setShowConfirmar] = useState(false);
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
+  const [usuarioACalificar, setUsuarioACalificar] = useState<Participante | null>(null);
+  const [calificacionEstrellas, setCalificacionEstrellas] = useState(0);
+  const [motivoCalificacion, setMotivoCalificacion] = useState("");
 
 const eventoYaPaso = (fecha: string) => {
   return new Date(fecha) < new Date();
@@ -218,6 +221,33 @@ const manejarSalidaEvento = async (eventoId: string) => {
     alert(err.message);
   }
 };
+// Enviar calificación al backend
+const enviarCalificacion = async () => {
+  if (!usuarioACalificar || calificacionEstrellas === 0) return;
+
+  try {
+    const res = await fetch(
+      `http://localhost:8000/calificaciones/${usuarioACalificar.id}?estrellas=${calificacionEstrellas}&motivo=${encodeURIComponent(motivoCalificacion)}`,
+      {
+        method: "POST",
+        credentials: "include"
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.detail || "Error al enviar calificación");
+
+    alert("Calificación enviada correctamente");
+
+    setUsuarioACalificar(null);
+    setCalificacionEstrellas(0);
+    setMotivoCalificacion("");
+
+  } catch (err: any) {
+    alert(err.message);
+  }
+};
 
 
   if (loading) return (
@@ -369,12 +399,28 @@ const manejarSalidaEvento = async (eventoId: string) => {
                           {participante.telefono?.trim() && <span>{participante.telefono}</span>}
                         </div>
 
-                        <button 
-                          className="btn-ver-perfil"
-                          onClick={() => window.location.href = `/ver-perfil/${participante.id}`}
-                        >
-                          👤 Ver perfil
-                        </button>
+                        <div className="btns-container">
+                          <button 
+                            className="btn-ver-perfil"
+                            onClick={() => window.location.href = `/ver-perfil/${participante.id}`}
+                          >
+                            👤 Ver perfil
+                          </button>
+
+                          {eventoYaPaso(eventoSeleccionado.start) && participante.id !== usuarioId && (
+                          <button
+                            className="btn-ver-perfil"
+                            onClick={() => setUsuarioACalificar(participante)}
+                          >
+                            ⭐ Calificar usuario
+                          </button>
+
+
+                          )}
+                        </div>
+
+                  
+
 
                       </div>
                     ))}
@@ -466,6 +512,47 @@ const manejarSalidaEvento = async (eventoId: string) => {
           </div>
         </div>
       )}
+{/* ⭐ MODAL CALIFICAR USUARIO ⭐ */}
+{usuarioACalificar && (
+  <div className="confirm-modal" onClick={() => setUsuarioACalificar(null)}>
+    <div className="confirm-content" onClick={(e) => e.stopPropagation()}>
+
+      <h3>Calificar a {usuarioACalificar.nombre}</h3>
+
+      {/* Estrellas */}
+      <div className="stars-container">
+        {[1, 2, 3, 4, 5].map((s) => (
+          <span
+            key={s}
+            className={`star ${calificacionEstrellas >= s ? "active" : ""}`}
+            onClick={() => setCalificacionEstrellas(s)}
+          >
+            ⭐
+          </span>
+        ))}
+      </div>
+
+      {/* Motivo */}
+      <textarea
+        placeholder="Motivo (opcional)"
+        value={motivoCalificacion}
+        onChange={(e) => setMotivoCalificacion(e.target.value)}
+        className="motivo-input"
+      />
+
+      <div className="confirm-buttons">
+        <button className="btn-cancelar" onClick={() => setUsuarioACalificar(null)}>
+          Cancelar
+        </button>
+        <button className="btn-confirmar" onClick={enviarCalificacion}>
+          Enviar
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
+
     </div>
   );
 };
